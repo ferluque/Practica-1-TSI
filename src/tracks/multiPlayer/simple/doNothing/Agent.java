@@ -14,7 +14,8 @@ public class Agent extends AbstractMultiPlayer {
 	 * @param playerID ID if this agent
 	 */
 	public Agent(StateObservationMulti stateObs, ElapsedCpuTimer elapsedTimer, int playerID) {
-	}
+		
+		}
 
 	/**
 	 * return ACTION_NIL on every call to simulate doNothing player
@@ -24,6 +25,7 @@ public class Agent extends AbstractMultiPlayer {
 	 */
 	@Override
 	public ACTIONS act(StateObservationMulti stateObs, ElapsedCpuTimer elapsedTimer) {
+		
 		return ACTIONS.ACTION_NIL;
 	}
 }
