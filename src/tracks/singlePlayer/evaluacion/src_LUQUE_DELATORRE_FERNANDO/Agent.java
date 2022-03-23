@@ -6,16 +6,16 @@ import ontology.Types;
 import ontology.Types.ACTIONS;
 import tools.ElapsedCpuTimer;
 import tools.Vector2d;
-import java.util.Queue;
-import java.util.LinkedList;
 
 import java.util.ArrayList;
 
+
+
 public class Agent extends AbstractPlayer{
 
-	private ArrayList<Types.ACTIONS> current_node;
-	private Queue<ArrayList<Types.ACTIONS>> nodes_queue;
-	private Vector2d myPos;
+	boolean think = true;
+	int pos_inicial;
+	float fescala;
 	
 	
 	/**
@@ -24,9 +24,25 @@ public class Agent extends AbstractPlayer{
      * @param elapsedTimer Timer when the action returned is due.
 	 */
 	public Agent(StateObservation stateObs, ElapsedCpuTimer elapsedTimer){
-		myPos = stateObs.getAvatarPosition();
-		nodes_queue = new LinkedList<ArrayList<Types.ACTIONS>>();
-		current_node = new ArrayList<Types.ACTIONS>();
+		fescala = stateObs.getWorldDimension().height
+	}
+	
+	private void plan() {
+		
+	}
+	
+	private int posToId (Vector2d pos, int ancho_mapa) {
+		// Tenemos que dividir entre 50.0 para obtener la posición en el grid	
+		int row = (int)pos.y/50;
+		int column = (int)pos.x/50;
+//		System.out.println(row+ ", "+column);
+//		System.out.println(ancho_mapa);
+		return row*ancho_mapa+column;
+	}
+	
+	private Vector2d IdtoPos (int id, int ancho_mapa) {
+		Vector2d pos = new Vector2d(id%ancho_mapa, id/ancho_mapa);
+		return pos;
 	}
 	
 	/**
@@ -37,42 +53,13 @@ public class Agent extends AbstractPlayer{
 	 */
 	@Override
 	public ACTIONS act(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
+//		if (think)
+//			plan();
+//		int row = (int)stateObs.getAvatarPosition().y/50;
+//		int column = (int)stateObs.getAvatarPosition().x/50;
+//		System.out.println(row+ ", "+column);
 		
-		// Extraemos el nodo a expandir de la cola
-		current_node = nodes_queue.remove();
-		
-		// Vemos a qué posiciones nos podemos mover		
-		ArrayList<Types.ACTIONS> available = stateObs.getAvailableActions();
-		
-		// Guardamos la acción a tomar ahora que será la última de las que llevemos tomadas
-		Types.ACTIONS ret = current_node.get(current_node.size()-1);
-		
-		if (available.contains(Types.ACTIONS.ACTION_UP)) {
-			// Creamos el nuevo nodo como copia del actual
-			ArrayList<Types.ACTIONS> new_node = new ArrayList<>(current_node);
-			// Le añadimos la siguiente decisión
-			new_node.add(Types.ACTIONS.ACTION_UP);
-			// Lo añadimos a la cola de nodos
-			nodes_queue.add(new_node);
-		}
-		if (available.contains(Types.ACTIONS.ACTION_DOWN)) {
-			ArrayList<Types.ACTIONS> new_node = new ArrayList<>(current_node);
-			new_node.add(Types.ACTIONS.ACTION_DOWN);
-			nodes_queue.add(new_node);
-		}
-		if (available.contains(Types.ACTIONS.ACTION_LEFT)) {
-			ArrayList<Types.ACTIONS> new_node = new ArrayList<>(current_node);
-			new_node.add(Types.ACTIONS.ACTION_LEFT);
-			nodes_queue.add(new_node);
-		}
-		if (available.contains(Types.ACTIONS.ACTION_RIGHT)) {
-			ArrayList<Types.ACTIONS> new_node = new ArrayList<>(current_node);
-			new_node.add(Types.ACTIONS.ACTION_RIGHT);
-			nodes_queue.add(new_node);
-		}
-		
-		return ret;
-		
+		return ACTIONS.ACTION_LEFT;
 	}
 }
 
