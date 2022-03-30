@@ -97,8 +97,8 @@ public class AgentDFS extends AbstractPlayer {
 
 		// Una vez conocidos los nodos averiguamos la secuencia de acciones
 		Node actual,siguiente;
+		actual = camino.pop();
 		while (!camino.isEmpty()) {
-			actual = camino.pop();
 			siguiente = camino.pop();
 
 			// Separamos movimientos horizontales de verticales
@@ -115,6 +115,7 @@ public class AgentDFS extends AbstractPlayer {
 				else
 					decisiones.offer(ACTIONS.ACTION_DOWN);
 			}
+			actual = siguiente;
 		}
 	}
 

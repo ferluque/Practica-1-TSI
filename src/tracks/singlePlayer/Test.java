@@ -25,7 +25,7 @@ public class Test {
         String sampleRHEAController = "tracks.singlePlayer.advanced.sampleRHEA.Agent";
 		String sampleOLETSController = "tracks.singlePlayer.advanced.olets.Agent";
 
-		String AgenteBFS = "tracks.singlePlayer.evaluacion.src_LUQUE_DELATORRE_FERNANDO.Agent";
+		String AgenteBFS = "tracks.singlePlayer.evaluacion.src_LUQUE_DELATORRE_FERNANDO.AgentBFS";
 		
 		//Load available games
 		String spGamesCollection =  "examples/all_games_sp.csv";
