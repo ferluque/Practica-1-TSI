@@ -10,7 +10,7 @@ import core.game.Observation;
 
 import java.util.*;
 
-public class AgentDFS extends AbstractPlayer {
+public class AgentAStar extends AbstractPlayer {
 
 	boolean think = true;
 	Vector2d fescala;
@@ -30,7 +30,7 @@ public class AgentDFS extends AbstractPlayer {
 	 * @param stateObs     Observation of the current state.
 	 * @param elapsedTimer Timer when the action returned is due.
 	 */
-	public AgentDFS(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
+	public AgentAStar(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
 		fescala = new Vector2d(stateObs.getWorldDimension().width / stateObs.getObservationGrid().length,
 				stateObs.getWorldDimension().height / stateObs.getObservationGrid()[0].length);
 
@@ -51,60 +51,38 @@ public class AgentDFS extends AbstractPlayer {
 
 		ArrayList<Observation> inmoviles = stateObs.getImmovablePositions()[0];
 		inmoviles.addAll(stateObs.getImmovablePositions()[1]);
-		
+
 		ArrayList<Node> objetosInmoviles = new ArrayList<>();
-		for (Observation i: inmoviles) {
+		for (Observation i : inmoviles) {
 			Vector2d pos = i.position;
-			objetosInmoviles.add(new Node((int)(pos.y/fescala.y), (int)(pos.x/fescala.x)));
+			objetosInmoviles.add(new Node((int) (pos.y / fescala.y), (int) (pos.x / fescala.x)));
 		}
-		int r = (int)(stateObs.getWorldDimension().height/fescala.y);
-		int c = (int)(stateObs.getWorldDimension().width/fescala.x);
+		int r = (int) (stateObs.getWorldDimension().height / fescala.y);
+		int c = (int) (stateObs.getWorldDimension().width / fescala.x);
 		libre = new boolean[r][c];
-		for (int i=0; i<r; i++)
-			for (int j=0; j<c; j++)
+		for (int i = 0; i < r; i++)
+			for (int j = 0; j < c; j++)
 				libre[i][j] = true;
-		for (Node n: objetosInmoviles) {
+		for (Node n : objetosInmoviles) {
 			libre[n.row][n.column] = false;
 		}
 		visited = new boolean[r][c];
-		for (int i=0; i<r; i++)
-			for (int j=0; j<c; j++)
+		for (int i = 0; i < r; i++)
+			for (int j = 0; j < c; j++)
 				visited[i][j] = false;
-		
+
 	}
-	
-	private Node DFS_search(Node actual) {
-		Node siguiente=new Node(actual);
-		if ((actual.row != fin.row)||(actual.column != fin.column)) {
-			ArrayList<Node> Sucesores = getSucesores(actual);
-			siguiente.row = siguiente.column = -1;
-			for (Node v : Sucesores) {
-				if (!visited[v.row][v.column]) {
-					visited[v.row][v.column] = true;
-					nodos_visitados++;
-					v.parent = actual;
-					siguiente = DFS_search(v);
-				}
-				if ((siguiente.row!=-1)&&(siguiente.column!=-1)) {
-					camino.push(siguiente);
-					return siguiente.parent;
-				}
-			}
-		}	
-		return siguiente;
-	}
-	
-	private ArrayList<Node> getSucesores(Node u) {
+
+	private ArrayList<Node> getSucesores(StateObservation stateObs, Node u) {
 		ArrayList<Node> sucesores = new ArrayList<>();
-		
-		if (libre[u.row-1][u.column])
-			sucesores.add(new Node(u.row-1, u.column));
-		if (libre[u.row+1][u.column])
-			sucesores.add(new Node(u.row+1, u.column));
-		if (libre[u.row][u.column-1])
-			sucesores.add(new Node(u.row, u.column-1));
-		if (libre[u.row][u.column+1])
-			sucesores.add(new Node(u.row, u.column+1));
+		if (libre[u.row - 1][u.column])
+			sucesores.add(new Node(u.row - 1, u.column));
+		if (libre[u.row + 1][u.column])
+			sucesores.add(new Node(u.row + 1, u.column));
+		if (libre[u.row][u.column - 1])
+			sucesores.add(new Node(u.row, u.column - 1));
+		if (libre[u.row][u.column + 1])
+			sucesores.add(new Node(u.row, u.column + 1));
 
 		return sucesores;
 	}
@@ -114,35 +92,38 @@ public class AgentDFS extends AbstractPlayer {
 		fescala = new Vector2d(stateObs.getWorldDimension().width / stateObs.getObservationGrid().length,
 				stateObs.getWorldDimension().height / stateObs.getObservationGrid()[0].length);
 
-		inicio.parent = null;
-		visited[inicio.row][inicio.column] = true;
-		nodos_visitados++;
-		DFS_search(inicio);
-		camino.push(inicio);
-		// Recorremos el camino de vuelta almacenando los nodos
-		System.out.println(camino);
-		// Una vez conocidos los nodos averiguamos la secuencia de acciones
-		Node actual = camino.pop();
-		Node siguiente;
-		while (!camino.isEmpty()) {
-			siguiente = camino.pop();
-
-			// Separamos movimientos horizontales de verticales
-			// Horizontales (no se mueve en la columna
-			if (actual.row == siguiente.row) {
-				// Ha avanzado a la derecha
-				if (actual.column < siguiente.column)
-					decisiones.offer(ACTIONS.ACTION_RIGHT);
-				else
-					decisiones.offer(ACTIONS.ACTION_LEFT);
-			} else {
-				if (actual.row > siguiente.row)
-					decisiones.offer(ACTIONS.ACTION_UP);
-				else
-					decisiones.offer(ACTIONS.ACTION_DOWN);
-			}
-			actual = siguiente;
-		}
+		
+//		// Recorremos el camino de vuelta almacenando los nodos
+//		Node actual = u;
+//		while (actual != inicio) {
+//			camino.push(actual);
+//			actual = actual.parent;
+//		}
+//		camino.push(inicio);
+//		System.out.println(camino);
+//
+//		Node siguiente;
+//		// Una vez conocidos los nodos averiguamos la secuencia de acciones
+//		actual = camino.pop();
+//		while (!camino.isEmpty()) {
+//			siguiente = camino.pop();
+//
+//			// Separamos movimientos horizontales de verticales
+//			// Horizontales (no se mueve en la columna
+//			if (actual.row == siguiente.row) {
+//				// Ha avanzado a la derecha
+//				if (actual.column < siguiente.column)
+//					decisiones.offer(ACTIONS.ACTION_RIGHT);
+//				else
+//					decisiones.offer(ACTIONS.ACTION_LEFT);
+//			} else {
+//				if (actual.row > siguiente.row)
+//					decisiones.offer(ACTIONS.ACTION_UP);
+//				else
+//					decisiones.offer(ACTIONS.ACTION_DOWN);
+//			}
+//			actual = siguiente;
+//		}
 	}
 
 	/**
@@ -156,9 +137,8 @@ public class AgentDFS extends AbstractPlayer {
 	public ACTIONS act(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
 		if (think) {
 			plan(stateObs);
-			System.out.println("Nodos visitados: " + nodos_visitados);
-		}	
-
+			System.out.println("Nodos expandidos: " + nodos_visitados);
+		}
 		return decisiones.poll();
 	}
 }

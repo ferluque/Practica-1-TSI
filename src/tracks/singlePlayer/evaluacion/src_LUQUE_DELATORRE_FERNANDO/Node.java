@@ -16,6 +16,12 @@ class Node {
 		parent = null;
 	}
 	
+	Node(Node another) {
+		this.row = another.row;
+		this.column = another.column;
+		this.parent = another.parent;
+	}
+	
 	@Override
 	public String toString() {
 		return "("+row+","+column+")";
