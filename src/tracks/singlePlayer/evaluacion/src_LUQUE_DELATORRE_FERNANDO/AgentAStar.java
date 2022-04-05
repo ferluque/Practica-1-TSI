@@ -17,12 +17,12 @@ public class AgentAStar extends AbstractPlayer {
 
 	Node inicio, fin;
 
-	Queue<Node> toExpand = new LinkedList<Node>();
+	PriorityQueue<Node> abiertos;
+	ArrayList<Node> cerrados;
 	Queue<ACTIONS> decisiones = new LinkedList<>();
 	Stack<Node> camino = new Stack<>();
 	boolean[][] libre;
-	boolean[][] visited;
-	int nodos_visitados = 0;
+	int consumo_memoria = 0;
 
 	/**
 	 * initialize all variables for the agent
@@ -42,12 +42,17 @@ public class AgentAStar extends AbstractPlayer {
 		fin = new Node();
 		fin.row = (int) Math.floor(portal.y / fescala.y);
 		fin.column = (int) Math.floor(portal.x / fescala.x);
+		fin.f = fin.g = fin.h = 0;
 
 		// Hacemos lo mismo con la posición inicial
 		inicio = new Node();
 		Vector2d posJugador = stateObs.getAvatarPosition();
 		inicio.row = (int) Math.floor(posJugador.y / fescala.y);
 		inicio.column = (int) Math.floor(posJugador.x / fescala.x);
+
+		inicio.g = 0;
+		inicio.h = inicio.heuristic(fin);
+		inicio.f = inicio.h;
 
 		ArrayList<Observation> inmoviles = stateObs.getImmovablePositions()[0];
 		inmoviles.addAll(stateObs.getImmovablePositions()[1]);
@@ -66,14 +71,13 @@ public class AgentAStar extends AbstractPlayer {
 		for (Node n : objetosInmoviles) {
 			libre[n.row][n.column] = false;
 		}
-		visited = new boolean[r][c];
-		for (int i = 0; i < r; i++)
-			for (int j = 0; j < c; j++)
-				visited[i][j] = false;
 
+		// Inicializamos la cola con prioridad
+		abiertos = new PriorityQueue<Node>(new NodeComparator());
+		cerrados = new ArrayList<Node>();
 	}
 
-	private ArrayList<Node> getSucesores(StateObservation stateObs, Node u) {
+	private ArrayList<Node> getSucesores(Node u) {
 		ArrayList<Node> sucesores = new ArrayList<>();
 		if (libre[u.row - 1][u.column])
 			sucesores.add(new Node(u.row - 1, u.column));
@@ -87,43 +91,89 @@ public class AgentAStar extends AbstractPlayer {
 		return sucesores;
 	}
 
+	private int find(ArrayList<Node> l, Node u) {
+		int pos = -1;
+		for (int i=0; (i<l.size())&&(pos==-1); i++) {
+			Node n = l.get(i);
+			if ((n.column == u.column) && (n.row == u.row))
+				pos = i;
+		}
+		return pos;
+	}
+	
 	private void plan(StateObservation stateObs) {
 		think = false;
 		fescala = new Vector2d(stateObs.getWorldDimension().width / stateObs.getObservationGrid().length,
 				stateObs.getWorldDimension().height / stateObs.getObservationGrid()[0].length);
 
-		
-//		// Recorremos el camino de vuelta almacenando los nodos
-//		Node actual = u;
-//		while (actual != inicio) {
-//			camino.push(actual);
-//			actual = actual.parent;
-//		}
-//		camino.push(inicio);
-//		System.out.println(camino);
-//
-//		Node siguiente;
-//		// Una vez conocidos los nodos averiguamos la secuencia de acciones
-//		actual = camino.pop();
-//		while (!camino.isEmpty()) {
-//			siguiente = camino.pop();
-//
-//			// Separamos movimientos horizontales de verticales
-//			// Horizontales (no se mueve en la columna
-//			if (actual.row == siguiente.row) {
-//				// Ha avanzado a la derecha
-//				if (actual.column < siguiente.column)
-//					decisiones.offer(ACTIONS.ACTION_RIGHT);
-//				else
-//					decisiones.offer(ACTIONS.ACTION_LEFT);
-//			} else {
-//				if (actual.row > siguiente.row)
-//					decisiones.offer(ACTIONS.ACTION_UP);
-//				else
-//					decisiones.offer(ACTIONS.ACTION_DOWN);
-//			}
-//			actual = siguiente;
-//		}
+		abiertos.add(inicio);
+		Node actual = inicio;
+		while (true) {
+			actual = abiertos.poll();
+			if ((actual.row == fin.row) && (actual.column == fin.column)) {
+				break;
+			}
+			ArrayList<Node> sucesores = getSucesores(actual);
+			for (Node sucesor : sucesores) {
+				if ((actual.parent == null)||(sucesor.row != actual.parent.row) || (sucesor.column != actual.parent.column)) {
+					sucesor.parent = actual;
+					sucesor.g = actual.g + 1;
+					sucesor.h = sucesor.heuristic(fin);
+					sucesor.f = sucesor.g + sucesor.h;
+
+					// Buscamos a sucesor en cerrados para, si está, actualizar su valor de g
+					int pos = find(cerrados, sucesor);
+					if (pos != -1) {
+						if (sucesor.g < cerrados.get(pos).g) {
+							cerrados.remove(pos);
+							abiertos.add(sucesor);
+						}
+					} else {
+						ArrayList<Node> open = new ArrayList<Node>(abiertos);
+						int posabiertos = find(open, sucesor);
+						if (posabiertos == -1)
+							abiertos.add(sucesor);
+						else if (sucesor.g < open.get(posabiertos).g){
+							abiertos.remove(open.get(posabiertos));
+							abiertos.add(sucesor);
+						}
+					}
+				}
+			}
+			cerrados.add(actual);
+			consumo_memoria = Math.max(consumo_memoria, abiertos.size()+cerrados.size());
+		}
+
+		// Recorremos el camino de vuelta
+		while (actual != inicio) {
+			camino.push(actual);
+			actual = actual.parent;
+		}
+		camino.push(inicio);
+		System.out.println(camino);
+
+		Node siguiente;
+		// Una vez conocidos los nodos averiguamos la secuencia de acciones
+		actual = camino.pop();
+		while (!camino.isEmpty()) {
+			siguiente = camino.pop();
+
+			// Separamos movimientos horizontales de verticales
+			// Horizontales (no se mueve en la columna
+			if (actual.row == siguiente.row) {
+				// Ha avanzado a la derecha
+				if (actual.column < siguiente.column)
+					decisiones.offer(ACTIONS.ACTION_RIGHT);
+				else
+					decisiones.offer(ACTIONS.ACTION_LEFT);
+			} else {
+				if (actual.row > siguiente.row)
+					decisiones.offer(ACTIONS.ACTION_UP);
+				else
+					decisiones.offer(ACTIONS.ACTION_DOWN);
+			}
+			actual = siguiente;
+		}
 	}
 
 	/**
@@ -137,7 +187,7 @@ public class AgentAStar extends AbstractPlayer {
 	public ACTIONS act(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
 		if (think) {
 			plan(stateObs);
-			System.out.println("Nodos expandidos: " + nodos_visitados);
+			System.out.println("Consumo de memoria: " + consumo_memoria + " nodos");
 		}
 		return decisiones.poll();
 	}
