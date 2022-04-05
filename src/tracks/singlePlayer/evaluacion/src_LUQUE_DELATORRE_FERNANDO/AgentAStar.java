@@ -18,10 +18,12 @@ public class AgentAStar extends AbstractPlayer {
 	Node inicio, fin;
 
 	PriorityQueue<Node> abiertos;
-	ArrayList<Node> cerrados;
+//	ArrayList<Node> cerrados;
 	Queue<ACTIONS> decisiones = new LinkedList<>();
 	Stack<Node> camino = new Stack<>();
 	boolean[][] libre;
+	Node[][] open; // 0 = no cerrado no abierto; 1 = abierto; 2 = cerrado
+	Node[][] cerrados;
 	int consumo_memoria = 0;
 
 	/**
@@ -74,7 +76,12 @@ public class AgentAStar extends AbstractPlayer {
 
 		// Inicializamos la cola con prioridad
 		abiertos = new PriorityQueue<Node>(new NodeComparator());
-		cerrados = new ArrayList<Node>();
+		// Inicializamos la matriz de abiertos y de cerrados
+		open = new Node[r][c];
+		cerrados = new Node[r][c];
+		for (int i=0; i<r; i++)
+			for (int j=0; j<c; j++)
+				open[i][j] = cerrados[i][j]= null;
 	}
 
 	private ArrayList<Node> getSucesores(Node u) {
@@ -107,6 +114,7 @@ public class AgentAStar extends AbstractPlayer {
 				stateObs.getWorldDimension().height / stateObs.getObservationGrid()[0].length);
 
 		abiertos.add(inicio);
+		open[inicio.row][inicio.column] = inicio;
 		Node actual = inicio;
 		while (true) {
 			actual = abiertos.poll();
@@ -122,13 +130,14 @@ public class AgentAStar extends AbstractPlayer {
 					sucesor.f = sucesor.g + sucesor.h;
 
 					// Buscamos a sucesor en cerrados para, si está, actualizar su valor de g
-					int pos = find(cerrados, sucesor);
-					if (pos != -1) {
-						if (sucesor.g < cerrados.get(pos).g) {
-							cerrados.remove(pos);
+										
+					if (cerrados[sucesor.row][sucesor.column] != null) { // Si está en cerrados
+						if (sucesor.g < cerrados[sucesor.row][sucesor.column].g) {
+							cerrados[sucesor.row][sucesor.column] = null;
 							abiertos.add(sucesor);
 						}
 					} else {
+						/*
 						ArrayList<Node> open = new ArrayList<Node>(abiertos);
 						int posabiertos = find(open, sucesor);
 						if (posabiertos == -1)
@@ -137,11 +146,21 @@ public class AgentAStar extends AbstractPlayer {
 							abiertos.remove(open.get(posabiertos));
 							abiertos.add(sucesor);
 						}
+						*/
+						if (open[sucesor.row][sucesor.column] == null) {
+							abiertos.add(sucesor);
+							open[sucesor.row][sucesor.column] = sucesor;
+						}
+						else if (sucesor.g < open[sucesor.row][sucesor.column].g) {
+							abiertos.remove(open[sucesor.row][sucesor.column]);
+							abiertos.add(sucesor);
+							open[sucesor.row][sucesor.column] = sucesor;
+						}
 					}
 				}
 			}
-			cerrados.add(actual);
-			consumo_memoria = Math.max(consumo_memoria, abiertos.size()+cerrados.size());
+			cerrados[actual.row][actual.column] = actual;
+			consumo_memoria = Math.max(consumo_memoria, abiertos.size());
 		}
 
 		// Recorremos el camino de vuelta
