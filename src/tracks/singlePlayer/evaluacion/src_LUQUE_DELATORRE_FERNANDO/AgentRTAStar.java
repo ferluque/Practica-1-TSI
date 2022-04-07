@@ -10,27 +10,27 @@ import core.game.Observation;
 
 import java.util.*;
 
-public class AgentBFS extends AbstractPlayer {
+public class AgentRTAStar extends AbstractPlayer {
 
 	boolean think = true;
 	Vector2d fescala;
 
 	Node inicio, fin;
+	Node actual;
 
-	Queue<Node> toExpand = new LinkedList<Node>();
-	Queue<ACTIONS> decisiones = new LinkedList<>();
-	Stack<Node> camino = new Stack<>();
 	boolean[][] libre;
-	boolean[][] visited;
-	int nodos_expandidos = 0;
-	int nodos_visitados = 0;
+	int[][] heuristics;
+	int consumo_memoria = 0;
+	
+	long tAcumulado = (long)0.0;
+
 	/**
 	 * initialize all variables for the agent
 	 * 
 	 * @param stateObs     Observation of the current state.
 	 * @param elapsedTimer Timer when the action returned is due.
 	 */
-	public AgentBFS(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
+	public AgentRTAStar(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
 		fescala = new Vector2d(stateObs.getWorldDimension().width / stateObs.getObservationGrid().length,
 				stateObs.getWorldDimension().height / stateObs.getObservationGrid()[0].length);
 
@@ -42,12 +42,19 @@ public class AgentBFS extends AbstractPlayer {
 		fin = new Node();
 		fin.row = (int) Math.floor(portal.y / fescala.y);
 		fin.column = (int) Math.floor(portal.x / fescala.x);
+		fin.f = fin.g = fin.h = 0;
 
 		// Hacemos lo mismo con la posición inicial
 		inicio = new Node();
 		Vector2d posJugador = stateObs.getAvatarPosition();
 		inicio.row = (int) Math.floor(posJugador.y / fescala.y);
 		inicio.column = (int) Math.floor(posJugador.x / fescala.x);
+
+		inicio.g = 0;
+		inicio.h = inicio.heuristic(fin);
+		inicio.f = inicio.h;
+
+		actual = inicio;
 
 		ArrayList<Observation> inmoviles = stateObs.getImmovablePositions()[0];
 		inmoviles.addAll(stateObs.getImmovablePositions()[1]);
@@ -66,16 +73,18 @@ public class AgentBFS extends AbstractPlayer {
 		for (Node n : objetosInmoviles) {
 			libre[n.row][n.column] = false;
 		}
-		visited = new boolean[r][c];
-		for (int i = 0; i < r; i++)
-			for (int j = 0; j < c; j++)
-				visited[i][j] = false;
-
+		
+		heuristics = new int[r][c];
+		for (int i=0; i<r; i++) {
+			for (int j=0; j<c; j++) {
+				Node n = new Node(i,j);
+				heuristics[i][j] = n.heuristic(fin);
+			}
+		}
 	}
 
-	private ArrayList<Node> getSucesores(StateObservation stateObs, Node u) {
+	private ArrayList<Node> getSucesores(Node u) {
 		ArrayList<Node> sucesores = new ArrayList<>();
-
 		if (libre[u.row - 1][u.column])
 			sucesores.add(new Node(u.row - 1, u.column));
 		if (libre[u.row + 1][u.column])
@@ -87,66 +96,54 @@ public class AgentBFS extends AbstractPlayer {
 
 		return sucesores;
 	}
-
-	private void plan(StateObservation stateObs) {
-		think = false;
-		fescala = new Vector2d(stateObs.getWorldDimension().width / stateObs.getObservationGrid().length,
-				stateObs.getWorldDimension().height / stateObs.getObservationGrid()[0].length);
-
-		inicio.parent = null;
-		visited[inicio.row][inicio.column] = true;
-		nodos_visitados++;
-		toExpand.offer(inicio);
-		Node u = inicio;
-		while (!toExpand.isEmpty()) {
-			u = toExpand.poll();
-			nodos_expandidos++;
-			if ((u.row == fin.row) && (u.column == fin.column))
-				break;
-			else {
-				ArrayList<Node> sucesores = getSucesores(stateObs, u); // Hay que terminar getSucesores
-				for (Node v : sucesores) {
-					if (!visited[v.row][v.column]) {
-						visited[v.row][v.column] = true;
-						nodos_visitados++;
-						v.parent = u;
-						toExpand.offer(v);
-					}
-				}
-			}
+	
+	private Types.ACTIONS think() {
+		ArrayList<Node> sucesores = getSucesores(actual);
+		for (int i = 0; i < sucesores.size(); i++) {
+			sucesores.get(i).h = heuristics[sucesores.get(i).row][sucesores.get(i).column];
+			sucesores.get(i).g = actual.g+1;
+			sucesores.get(i).f = sucesores.get(i).g+sucesores.get(i).h;
 		}
-		// Recorremos el camino de vuelta almacenando los nodos
-		Node actual = u;
-		while (actual != inicio) {
-			camino.push(actual);
-			actual = actual.parent;
+		// Escogemos el mejor para que sea el siguiente
+		Node better_option = sucesores.get(0);
+		for (int i=0; i<sucesores.size(); i++) {
+			if (better_option.f>sucesores.get(i).f)
+				better_option = sucesores.get(i);
 		}
-		camino.push(inicio);
+		// Sacamos la mejor opción para quedarnos ahora con la segunda para actualizar la heurística del nodo actual
+		sucesores.remove(better_option);
+		// Si está vacío, el segundo mínimo es igual que el primero
+		Node second_minimum;
+		if (!sucesores.isEmpty()) {
+			second_minimum=sucesores.get(0);
+			for (int i=1; i<sucesores.size(); i++)
+				if (second_minimum.f > sucesores.get(i).f)
+					second_minimum = sucesores.get(i);
+		}
+		else
+			second_minimum = better_option;
+		// Actualizamos la heurística del nodo actual
+		if (heuristics[actual.row][actual.column] < second_minimum.f) {
+			heuristics[actual.row][actual.column] = second_minimum.f;
+		}
+		// Separamos movimientos horizontales de verticales
+		// Horizontales (no se mueve en la columna
+		Types.ACTIONS accion;
+		if (actual.row == better_option.row) {
+			// Ha avanzado a la derecha
+			if (actual.column < better_option.column)
+				accion = ACTIONS.ACTION_RIGHT;
+			else
+				accion = ACTIONS.ACTION_LEFT;
+		} else {
+			if (actual.row > better_option.row)
+				accion = ACTIONS.ACTION_UP;
+			else
+				accion = ACTIONS.ACTION_DOWN;
+		}
+		actual = better_option;
 		
-		System.out.println("Tamaño del camino: "+ camino.size());
-
-		Node siguiente;
-		// Una vez conocidos los nodos averiguamos la secuencia de acciones
-		actual = camino.pop();
-		while (!camino.isEmpty()) {
-			siguiente = camino.pop();
-
-			// Separamos movimientos horizontales de verticales
-			// Horizontales (no se mueve en la columna
-			if (actual.row == siguiente.row) {
-				// Ha avanzado a la derecha
-				if (actual.column < siguiente.column)
-					decisiones.offer(ACTIONS.ACTION_RIGHT);
-				else
-					decisiones.offer(ACTIONS.ACTION_LEFT);
-			} else {
-				if (actual.row > siguiente.row)
-					decisiones.offer(ACTIONS.ACTION_UP);
-				else
-					decisiones.offer(ACTIONS.ACTION_DOWN);
-			}
-			actual = siguiente;
-		}
+		return accion;
 	}
 
 	/**
@@ -158,15 +155,14 @@ public class AgentBFS extends AbstractPlayer {
 	 */
 	@Override
 	public ACTIONS act(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
-		if (think) {
-			long tInicio = System.nanoTime();
-			plan(stateObs);
-			long tFin = System.nanoTime();
-			long tiempoenMs = (long)(tFin-tInicio)/(long)1e3;
-			System.out.println("Tiempo en microsegundos: " + tiempoenMs);
-			System.out.println("Nodos expandidos: " + nodos_expandidos);
-			System.out.println("Nodos visitados: " + nodos_visitados);
-		}
-		return decisiones.poll();
+		long tInicio = System.nanoTime();
+		Types.ACTIONS accion = think();
+		long tFin = System.nanoTime();
+		tAcumulado += (tFin-tInicio)/(long)1e3;
+		
+		System.out.println("Tiempo acumulado: " + tAcumulado);
+		
+		
+		return accion;
 	}
 }

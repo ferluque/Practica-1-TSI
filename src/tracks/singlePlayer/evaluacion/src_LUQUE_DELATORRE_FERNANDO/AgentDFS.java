@@ -22,6 +22,7 @@ public class AgentDFS extends AbstractPlayer {
 	Stack<Node> camino = new Stack<>();
 	boolean[][] libre;
 	boolean[][] visited;
+	int nodos_expandidos = 0;
 	int nodos_visitados = 0;
 
 	/**
@@ -74,6 +75,7 @@ public class AgentDFS extends AbstractPlayer {
 	}
 	
 	private Node DFS_search(Node actual) {
+		nodos_expandidos++;
 		Node siguiente=new Node(actual);
 		if ((actual.row != fin.row)||(actual.column != fin.column)) {
 			ArrayList<Node> Sucesores = getSucesores(actual);
@@ -119,8 +121,8 @@ public class AgentDFS extends AbstractPlayer {
 		nodos_visitados++;
 		DFS_search(inicio);
 		camino.push(inicio);
-		// Recorremos el camino de vuelta almacenando los nodos
-		System.out.println(camino);
+		System.out.println("Tamaño de la ruta calculada: "+ camino.size());
+		
 		// Una vez conocidos los nodos averiguamos la secuencia de acciones
 		Node actual = camino.pop();
 		Node siguiente;
@@ -155,7 +157,12 @@ public class AgentDFS extends AbstractPlayer {
 	@Override
 	public ACTIONS act(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
 		if (think) {
+			long tInicio = System.nanoTime();
 			plan(stateObs);
+			long tFin = System.nanoTime();
+			long tiempo = (long)(tFin-tInicio)/(long)1e3;
+			System.out.println("Tiempo en microsegundos: "+tiempo);
+			System.out.println("Nodos expandidos: "+ nodos_expandidos);
 			System.out.println("Nodos visitados: " + nodos_visitados);
 		}	
 

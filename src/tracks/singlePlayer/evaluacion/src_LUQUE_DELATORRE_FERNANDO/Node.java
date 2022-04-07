@@ -43,6 +43,12 @@ class NodeComparator implements Comparator<Node> {
 			return 1;
 		else if (n1.f<n2.f)
 			return -1;
+		else {
+			if (n1.g>n2.g)
+				return 1;
+			else if (n1.g<n2.g)
+				return -1;
+		}
 		return 0;
 	}
 }
